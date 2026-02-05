@@ -5,6 +5,7 @@ CROSS_COMPILE = bcm2708hardfp-
 
 CFLAGS=-Wall -Wfatal-errors -O2
 LDFLAGS=-static  -pthread
+EXEC=read_bp blink01_bp_pt
 
 help:
 	@echo ""
@@ -17,17 +18,11 @@ help:
 	@echo " 		copy	compile then copy to card $(RPI) in directory $(NAME)"
 	@echo ""
 
-all: clean dep
+all: clean $(EXEC)
 
-pt0 : clean dep2
+read_bp: read_bp.x
 
-pt1 : clean dep3
-
-dep  : blink0.x
-dep2 : blink0_pt.x
-dep3 : blink1_pt.x
-dep4 : read_bp.x
-dep5 : blink01_bp_pt.x
+blink01_bp_pt: blink01_bp_pt.x
 
 copy: *.x
 	scp -P 622$(RPI) $^ pi@peri:$(NAME)

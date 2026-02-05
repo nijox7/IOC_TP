@@ -124,9 +124,95 @@ gpio_munmap ( void * ptr )
 // Main Programm
 //------------------------------------------------------------------------------
 
+void
+delay ( unsigned int milisec )
+{
+    struct timespec ts, dummy;
+    ts.tv_sec  = ( time_t ) milisec / 1000;
+    ts.tv_nsec = ( long ) ( milisec % 1000 ) * 1000000;
+    nanosleep ( &ts, &dummy );
+}
+
+int
+bp_thread(void* period_arg) {
+    // button
+    int period = (int) *perdiod_arg;
+    int bounce_period = 100;
+    int old_val = 1; // default button released
+    int val = 1;
+    int bp_on = 0;
+    // led
+    gpio_write(GPIO_LED0, 1);
+
+    // programm loop
+    while(1){
+        old_val = val;
+	    val = gpio_read(GPIO_BP);
+        if (old_val != val){
+            if (val == 0){
+                printf("Button pressed\n");
+                gpio_write(GPIO_LED0, 1);
+                bp_on = 1;
+            }
+            else {
+                printf("Button released\n");
+                gpio_write(GPIO_LED0, 0);
+                bp_on = 0;
+            }
+        }
+
+        // waiting bounce period button before take new measure
+        // waiting the original period if bounce_period is too short 
+        if (bp_on && period > bounce_period) delay(bounce_period);
+        else delay(period);
+    }
+
+    return 0;
+}
+
+int
+bp_threadv2(void* period_arg) {
+    // button
+    int period = (int) *perdiod_arg;
+    int old_val = 1; // default button released
+    int val = 1;
+    int led_val = 0;
+
+    // led
+    gpio_write(GPIO_LED0, 1);
+
+    // programm loop
+    while(1){
+        old_val = val;
+	    val = gpio_read(GPIO_BP);
+        if (old_val != val){
+            if (val == 0){
+                printf("Bouton enfoncé\n");
+                gpio_write(GPIO_LED0, 1);
+                delay(period*2); // délai supplémentaire, on attend 2*plus longtemps que le délai de base
+            }
+            else printf("Bouton relaché\n");
+        }
+        delay(period);
+    }
+
+    return 0;
+}
+
 int
 main ( int argc, char **argv )
 {
+    // Get args
+    // ---------------------------------------------
+
+    int period, half_period;
+
+    period = 20; /* default = 50Hz, 20 ms */
+    if ( argc > 1 ) {
+        period = atoi ( argv[1] );
+    }
+    uint32_t volatile * gpio_base = 0;
+
     // map GPIO registers
     // ---------------------------------------------
 
@@ -138,16 +224,19 @@ main ( int argc, char **argv )
     // Setup GPIO of LED0 to output
     // ---------------------------------------------
     
+    gpio_fsel(GPIO_LED0, GPIO_FSEL_OUTPUT);
     gpio_fsel(GPIO_BP, GPIO_FSEL_INPUT);
 
     // Reading button's value
     // ---------------------------------------------
 
-    // boucle infinie
-    int val = 0;
-    while(1){
-		printf("Valeur de l'entrée %d: %d\n", GPIO_BP, gpio_read(GPIO_BP));
+    pthread_t* thd;
+    if (pthread_create(thd, NULL, bp_thread, (void*) &period) == EAGAIN){
+        printf("-- error: cannot create thread.\n");
+        exit(1);
     }
+
+    pthread_join(thd, 0);
 
     gpio_munmap(gpio_regs_virt);
 
