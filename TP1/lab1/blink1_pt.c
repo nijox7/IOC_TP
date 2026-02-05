@@ -125,11 +125,17 @@ delay ( unsigned int milisec )
     nanosleep ( &ts, &dummy );
 }
 
-void blink_thread(int *period) {
+void blink_thread(int *args) {
+    int LED = args[0];
+    int period = args[1];
     uint32_t val = 0;
-    int half_period = *period / 2;
+    int half_period = period / 2;
+    if(LED != GPIO_LED0 && LED != GPIO_LED1) {
+        printf("ENTREZ UNE VALEUR CORRECTE DE LED DANS LA FONCTION !\n");
+        return -1;
+    }
     while (1) {
-        gpio_write ( GPIO_LED0, val );
+        gpio_write ( LED, val );
         delay ( half_period );
         val = 1 - val;
     }
@@ -161,26 +167,28 @@ main ( int argc, char **argv )
     // ---------------------------------------------
     
     gpio_fsel(GPIO_LED0, GPIO_FSEL_OUTPUT);
+    gpio_fsel(GPIO_LED1, GPIO_FSEL_OUTPUT);
 
     // Blink led at frequency of 1Hz
     // ---------------------------------------------
 
+    // Threads
     pthread_t thread;
-    if(pthread_create(&thread, NULL, (void *) blink_thread, &period) < 0) {
+    pthread_t thread2;
+    int args_led0[2] = {GPIO_LED0, period}; // arguments du premier thread (numéro de led et la période)
+    int args_led1[2] = {GPIO_LED1, period}; // arguments du second thread (numéro de led et la période)
+    if(pthread_create(&thread, NULL, (void *) blink_thread, args_led0) < 0) { // démarrage du thread
+        printf("Thread error\n");
+        return 1;
+    }
+    if(pthread_create(&thread2, NULL, (void *) blink_thread, args_led1) < 0) { // démarrage du thread
         printf("Thread error\n");
         return 1;
     }
     printf ( "-- info: start blinking.\n" );
 
-    uint32_t val = 0;
-    half_period = period / 2;
-    while (1) {
-        gpio_write ( GPIO_LED1, val );
-        delay ( half_period );
-        val = 1 - val;
-    }
-
     pthread_join(thread, NULL);
+    pthread_join(thread2, NULL);
 
     return 0;
 }
