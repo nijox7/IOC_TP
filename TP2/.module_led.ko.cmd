@@ -1,0 +1,1 @@
+cmd_/users/enseig/carbou/Documents/S2/IOC/TP2/module_led.ko := /users/enseig/franck/E-IOC/arm-bcm2708hardfp-linux-gnueabi/bin/bcm2708hardfp-ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /users/enseig/carbou/Documents/S2/IOC/TP2/module_led.ko /users/enseig/carbou/Documents/S2/IOC/TP2/module_led.o /users/enseig/carbou/Documents/S2/IOC/TP2/module_led.mod.o

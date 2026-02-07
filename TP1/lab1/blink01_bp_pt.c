@@ -68,12 +68,9 @@ gpio_write (uint32_t pin, uint32_t val)
         gpio_regs_virt->gpclr[reg] = (1 << bit);
 }
 
-static uint32_t
-gpio_read (uint32_t pin)
+static int gpio_read(int pin)
 {
-    uint32_t reg = pin / 32;
-    uint32_t bit = pin % 32;
-    return (gpio_regs_virt->gplev[reg] << bit) && 1;
+    return (gpio_regs_virt->gplev[pin/32] & (1 << (pin % 32))) != 0;
 }
 
 //------------------------------------------------------------------------------
