@@ -57,7 +57,7 @@ Voici les retours de nos expériences lors du TP:
 
 Les threads nous ont permis ici d'exécuter une même fonction sur deux leds en parallèle. Nous avons donc compris leur interêt grâce à ce TP. Nous avons réalisés, par la simple expérience de l'allumage de 2 leds, que l'exécution de deux comportements en parallèles peut être bien plus compliqué que ce qu'il n'y paraît.
 
-La génération de clée ssh nous a permis de comprendre leur utilité et leur efficacité. Nous avons pus grâce à celle-ci s'identifier automatiquement sur un réseau et d'éviter de s'authentifier plusieurs fois.
+La génération de clés ssh nous a permis de comprendre leur utilité et leur efficacité. Nous avons pu grâce à celle-ci s'identifier automatiquement sur un réseau afin d'éviter de s'authentifier plusieurs fois.
 
 Concernant le bouton poussoir, nous avons réalisé qu'il fallait faire très attention lorsque l'on programme un système en temps réel. Nous avons compris que l'on peut faire face à certains imprévus malgré un programme fonctionnel en théorie. Celà nous a permis donc de comprendre l'importance de tester et de remettre en question des détails qui ne sont pas forcément visible sur un programme.
 
@@ -73,3 +73,7 @@ L'option static permet d'écrire le code des fichiers inclus, dans le fichier bi
 La fonction mmap renvoie un pointeur (virtuel) du mapping d'un fichier (ouvert dans un file descriptor) accessible comme un pointeur classique, et permet de modifier le contenu du fichier mappé par ce pointeur.
 On utilise ici mmap pour faire un mapping du dossier "dev/mem" qui correspond à la mémoire de la raspberry-pi.
 On peut après ça utiliser le mapping pour accéder aux registres GPIO dans notre cas.
+
+
+### Utilisation des registres GPIO
+Les registres gpio permettent d'utiliser des périphériques. On peut notamment utiliser : le registre `gpset` pour l'écriture de données, `gplev` pour la lecture de données, et `gpclr` pour libérer des données (ou remettre à 0). `gpfsel` permet de se positionner en lecture ou en écriture.
