@@ -77,11 +77,11 @@ module_init(led_module_init);
 module_exit(led_module_cleanup);
 
 /*
-Major = 246
-
 $ dd bs=1 count=1 < /dev/module_ledCD
 1+0 records in
 1+0 records out
 1 byte (1 B) copied, 0.00101495 s, 1.0 kB/s
+
+provoque : open(), read(), close() dans le dmesg (affichage debug)
 
 */

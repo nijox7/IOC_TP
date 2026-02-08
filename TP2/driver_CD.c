@@ -92,25 +92,60 @@ open_led_CD(struct inode *inode, struct file *file) {
     return 0;
 }
 
-static ssize_t 
+// je suppose que count représente les informations voulues :
+// 000 : rien
+// 001 : le bouton poussoir
+// 010 : la led 0
+// 100 : la led 1
+// donc 111 : bouton + led0 + led1
+// on renvoit le nombre d'entiers (par exemple 2 avec 011)
+// on remplit buf avec les valeurs lues
+static ssize_t
 read_led_CD(struct file *file, char *buf, size_t count, loff_t *ppos) {
     printk(KERN_DEBUG "read()\n");
+    printk(KERN_DEBUG "   count=%d\n", count);
 
-    int value = gpio_read(BP); // on lit la valeur du bouton
-    printk(KERN_DEBUG "   valeur du BP : %d\n", value);
+    int values[3];
+    int nb = 0;
 
-    return value;
+    if(count & 1) { // bouton poussoir
+        values[nb] = gpio_read(BP);
+        printk(KERN_DEBUG "   bp=%d\n", values[nb]);
+        nb++;
+    }
+    if(count & 10) { // led 0
+        values[nb] = gpio_read(LED0);
+        printk(KERN_DEBUG "   led0=%d\n", values[nb]);
+        nb++;
+    }
+    if(count & 100) { // led 1
+        values[nb] = gpio_read(LED1);
+        printk(KERN_DEBUG "   led1=%d\n", values[nb]);
+        nb++;
+    }
+
+    if(nb) {
+        copy_to_user(buf, values, nb); // on remplit buf avec les valeurs lues
+        // on ne peut pas modifier buf directement
+    }
+
+    return nb; // nombre d'entier renvoyés
 }
 
+// je suppose que buf contient : "XY" X : valeur led0, Y : valeur led1 
+// (par exemple 01 : led 1 éteinte, led2 allumée)
 static ssize_t 
 write_led_CD(struct file *file, const char *buf, size_t count, loff_t *ppos) {
-    printk(KERN_DEBUG "write()\n");
-    printk(KERN_DEBUG "   buf[0] = %c, buf[1] = %c, count = %i\n", buf[0], buf[1], count);
-    // je suppose que buf contient : "XY" X : valeur led0, Y : valeur led1 (par exemple 01 : led 1 éteinte, led2 allumée)
+    char buf_copy[count]; 
+    copy_from_user(&buf_copy, buf, count);
+    // on doit d'abord copier buf, et lire la copie
 
-    if(buf[0] == '0') gpio_write(LED0, 0);
+    printk(KERN_DEBUG "write()\n");
+    printk(KERN_DEBUG "   buf[0] = %c, buf[1] = %c, count = %i\n", buf_copy[0], buf_copy[1], count);
+
+    if(buf_copy[0] == '0') gpio_write(LED0, 0);
     else gpio_write(LED0, 1);
-    if(buf[1] == '0') gpio_write(LED1, 0);
+    if(buf_copy[1] == '0') gpio_write(LED1, 0);
     else gpio_write(LED1, 1);
     printk(KERN_DEBUG "   led0=%d, led1=%d\n", gpio_read(LED0), gpio_read(LED1));
     return count;
