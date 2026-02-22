@@ -1,0 +1,84 @@
+//------------------------------------------------------------------------------
+// Headers that are required for printf and mmap
+//------------------------------------------------------------------------------
+
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+#include <pthread.h>
+
+//------------------------------------------------------------------------------
+// GPIO ACCES
+//------------------------------------------------------------------------------
+
+#define BCM2835_PERIPH_BASE     0x20000000
+#define BCM2835_GPIO_BASE       ( BCM2835_PERIPH_BASE + 0x200000 )
+
+#define GPIO_LED0   4
+#define GPIO_LED1   17
+#define GPIO_BP     18
+
+#define GPIO_FSEL_INPUT  0
+#define GPIO_FSEL_OUTPUT 1
+
+struct gpio_s
+{
+    uint32_t gpfsel[7];
+    uint32_t gpset[3];
+    uint32_t gpclr[3];
+    uint32_t gplev[3];
+    uint32_t gpeds[3];
+    uint32_t gpren[3];
+    uint32_t gpfen[3];
+    uint32_t gphen[3];
+    uint32_t gplen[3];
+    uint32_t gparen[3];
+    uint32_t gpafen[3];
+    uint32_t gppud[1];
+    uint32_t gppudclk[3];
+    uint32_t test[1];
+};
+
+struct gpio_s *gpio_regs_virt; 
+
+
+static void 
+gpio_fsel(uint32_t pin, uint32_t fun)
+{
+    uint32_t reg = pin / 10;
+    uint32_t bit = (pin % 10) * 3;
+    uint32_t mask = 0b111 << bit;
+    gpio_regs_virt->gpfsel[reg] = (gpio_regs_virt->gpfsel[reg] & ~mask) | ((fun << bit) & mask);
+}
+
+static void 
+gpio_write (uint32_t pin, uint32_t val)
+{
+    uint32_t reg = pin / 32;
+    uint32_t bit = pin % 32;
+    if (val == 1) 
+        gpio_regs_virt->gpset[reg] = (1 << bit);
+    else
+        gpio_regs_virt->gpclr[reg] = (1 << bit);
+}
+
+//------------------------------------------------------------------------------
+// Access to memory-mapped I/O
+//------------------------------------------------------------------------------
+
+#define RPI_PAGE_SIZE           4096
+#define RPI_BLOCK_SIZE          4096
+
+static int gpio_mmap ( void ** ptr );
+
+void gpio_munmap ( void * ptr );
+
+void delay ( unsigned int milisec );
+
+void blink_thread(int *period);
