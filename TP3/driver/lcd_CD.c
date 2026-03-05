@@ -7,6 +7,7 @@
 #include <asm/delay.h>
 
 #include <linux/slab.h>
+#include "ioctl.h"
 
 
 /*******************************************************************************
@@ -232,15 +233,15 @@ write_lcd_CD(struct file *file, const char *buf, size_t count, loff_t *ppos) {
     printk(KERN_DEBUG "   count=%d\n", count);
 
     lcd_clear();
-    
-    char *new_buf = (char *)kmalloc(count, GFP_KERNEL);
+
+    char *new_buf = (char *)kmalloc(count+1, GFP_KERNEL);
     if(new_buf == NULL) {
         printk(KERN_DEBUG "lcd_CD : write : kmalloc failed\n");
         return -ENOMEM;
     }
     copy_from_user(new_buf, buf, count);
 
-    // new_buf[count] = '\0';
+    new_buf[count] = '\0';
     printk(KERN_DEBUG "new_buf : %s\n", new_buf);
 
     lcd_message(new_buf);
@@ -256,11 +257,35 @@ release_lcd_CD(struct inode *inode, struct file *file) {
     return 0;
 }
 
+static long ioctl_lcd(struct file *file, unsigned int cmd, unsigned long arg)
+{
+    printk(KERN_DEBUG "Ioctl_lcd ! \n");
+    struct cord_xy cord;
+    if(_IOC_TYPE(cmd) != IOC_MAGIC) // Check the magic number of the device
+        return -EINVAL;
+    switch(cmd){
+        case LCDIOCT_CLEAR:
+            file->f_pos = 0;
+            lcd_clear();
+            break;
+        case LCDIOCT_SETXY:
+            if(copy_from_user(&cord, (void*)arg, _IOC_SIZE(cmd)) != 0)
+                return -EINVAL;
+            kline = cord.line;
+            krow = cord.row;
+            break;
+        default: return -EINVAL;
+    }
+    return 0;
+}
+
 struct file_operations fops_lcd =
 {
+    .owner      = THIS_MODULE;
     .open       = open_lcd_CD,
     .read       = read_lcd_CD,
     .write      = write_lcd_CD,
+    .unlocked_ioctl = my_ioctl_function,
     .release    = release_lcd_CD
 };
 
