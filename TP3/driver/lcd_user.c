@@ -22,7 +22,6 @@ int main() {
         perror("ioctl");
         return -1;
     }
-    
-    free(buf);
+
     return 0;
 }

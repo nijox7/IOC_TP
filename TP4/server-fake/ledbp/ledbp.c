@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <stdint.h>
 #include <time.h>
@@ -133,15 +134,14 @@ void blink_thread(int *period) {
     }
 }
 
-void bp_thread(int* period_arg) {
+void bp_thread(int* args) {
     // button
-    int period = *period_arg;
+    int period = *args;
+    int f2s = *(args+1);
     int bounce_period = 100;
     int old_val = 1; // default button released
     int val = 1;
     int bp_on = 0;
-    // led
-    gpio_write(GPIO_LED0, 1);
 
     // programm loop
     while(1){
@@ -150,14 +150,15 @@ void bp_thread(int* period_arg) {
         if (old_val != val){
             if (val == 0){
                 printf("Button pressed\n");
-                gpio_write(GPIO_LED0, 1);
+                // gpio_write(GPIO_LED0, 1);
                 bp_on = 1;
 
-                
+                write(f2s, "led_on\n", 7);
             }
             else {
                 printf("Button released\n");
-                gpio_write(GPIO_LED0, 0);
+                // gpio_write(GPIO_LED0, 0);
+                write(f2s, "led_off\n", 8);
                 bp_on = 0;
             }
         }
@@ -201,7 +202,10 @@ int main()
     gpio_fsel(GPIO_BP, GPIO_FSEL_INPUT);
 
     pthread_t thd;
-    if (pthread_create(&thd, NULL, (void*) bp_thread, &period) < 0){
+    int period = 1000;
+
+    int args = {period, f2s};
+    if (pthread_create(&thd, NULL, (void*) bp_thread, &args) < 0){
         printf("-- error: cannot create thread.\n");
         exit(1);
     }
