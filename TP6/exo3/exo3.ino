@@ -13,8 +13,20 @@
 // retour :
 //  - nombre de périodes écoulées depuis le dernier appel
 // --------------------------------------------------------------------------------------------------------------------
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+#define OLED_RESET     16 // Reset pin # (or -1 if sharing Arduino reset pin)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #define MAX_WAIT_FOR_TIMER 4
+
 unsigned long waitFor(int timer, unsigned long period) {
     static unsigned long last_period[MAX_WAIT_FOR_TIMER];  // il y a autant de timers que de tâches
     unsigned long current = micros() / period;             // numéro de période
@@ -72,19 +84,33 @@ void step_mess(struct ctx_mess_t *ctx) {
 struct ctx_oled_t {
   int timer;
   unsigned long period;
-  int pin;
-  char mess[20];
-}
+  int counter;
+};
 
-void init_oled(struct ctx_oled_t* ctx, int timer, unsigned long period, const char* mess){
+void init_oled(struct ctx_oled_t* ctx, int timer, unsigned long period) {
   ctx->timer = timer;
   ctx->period = period;
-  strcpy(ctx->mess, mess);
-  // TODO OLED INIT
+  ctx->counter = 0;
+
+  Wire.begin(4, 15);
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+
+  display.setTextSize(3); // taille de la police
+  display.setTextColor(WHITE); // couleur de la police
+  display.setCursor(10, 10); // positionnement du curseur
 }
 
-void step_oled(){
-  
+void step_oled(struct ctx_oled_t *ctx) {
+  if (!(waitFor(ctx->timer,ctx->period))) return;
+
+  display.clearDisplay(); // on vide le buffer (on écrase l'ancienne image)
+  display.setCursor(10, 10); // on repositionne le curseur (print le déplace)
+  display.print(ctx->counter); // on ajoute le compteur dans le buffer d'affichage
+  display.display(); // on affiche le buffer
+  ctx->counter++;
 }
 
 //--------- Déclaration des contexte de tâches
@@ -92,7 +118,7 @@ void step_oled(){
 struct ctx_led_t Led1;
 struct ctx_mess_t Mess1;
 struct ctx_mess_t Mess2;
-struct ctx_oled_t;
+struct ctx_oled_t Oled;
 
 //--------- Setup et Loop
 
@@ -100,10 +126,14 @@ void setup() {
   init_led(&Led1, 0, 100000, LED_BUILTIN);               // Led est exécutée toutes les 100ms 
   init_mess(&Mess1, 1, 1000000, "bonjour");              // Mess est exécutée toutes les secondes 
   init_mess(&Mess2, 2, 2000000, "Salut");
+
+  init_oled(&Oled, 3, 1000000);
 }
 
 void loop() {
-  step_led(&Led1);                                        
+  step_led(&Led1);
   step_mess(&Mess1);
   step_mess(&Mess2);
+
+  step_oled(&Oled);
 }

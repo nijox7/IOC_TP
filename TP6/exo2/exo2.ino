@@ -14,7 +14,7 @@
 //  - nombre de périodes écoulées depuis le dernier appel
 // --------------------------------------------------------------------------------------------------------------------
 
-#define MAX_WAIT_FOR_TIMER 5
+#define MAX_WAIT_FOR_TIMER 3
 unsigned long waitFor(int timer, unsigned long period) {
     static unsigned long last_period[MAX_WAIT_FOR_TIMER];  // il y a autant de timers que de tâches
     unsigned long current = micros() / period;             // numéro de période
@@ -67,51 +67,11 @@ void step_mess(struct ctx_mess_t *ctx) {
   Serial.println(ctx->mess);                              // affichage du message
 }
 
-//--------- definition de la tache Oled
-
-struct ctx_oled_t {
-  int timer;
-  unsigned long period;
-  int pin;
-  char mess[20];
-}
-
-void init_oled(struct ctx_oled_t* ctx, int timer, unsigned long period, const char* mess){
-  ctx->timer = timer;
-  ctx->period = period;
-  strcpy(ctx->mess, mess);
-  // TODO OLED INIT
-}
-
-void step_oled(){
-  
-}
-
-//--------- definition de la tache  lum
-
-enum {EMPTY, FULL};
-
-struct mailbox_t {
-  int state;
-  int val;
-};
-
-struct mailbox_t mb = {.state = EMPTY};
-
-void init_lum(){
-  // TODO
-}
-
-void step_lum(mailbox_t * mb){
-  int lum = analogRead(); // TODO UTILISER MAP
-}
-
 //--------- Déclaration des contexte de tâches
 
 struct ctx_led_t Led1;
 struct ctx_mess_t Mess1;
 struct ctx_mess_t Mess2;
-struct ctx_oled_t Oled;
 
 //--------- Setup et Loop
 
@@ -122,7 +82,7 @@ void setup() {
 }
 
 void loop() {
-  step_led(&Led1);                                        
+  step_led(&Led1);
   step_mess(&Mess1);
   step_mess(&Mess2);
 }
