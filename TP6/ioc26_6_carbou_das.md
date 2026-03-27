@@ -55,3 +55,7 @@ Nous avons intégré le compteur à la structure ctx_oled coresspondant à la ta
 Pour les interruptions, nous nous sommes documentés sur la façon de lire le clavier avec arduino: https://docs.arduino.cc/built-in-examples/communication/SerialEvent/
 SerialEvent permet de détecter un évènement au clavier. On récupère dans cette fonction la touche du clavier avec Serial.read().
 SerialEvent déclenche un flag keyS qui signifie que la touche S a été enfoncée.
+
+Nous avons finalement changé de structure et avons simplement attaché la fonction ISR SerialEvent qui modifie une boîte à lettre à destination de la tache LED.
+Lorsque l'on écrit S, la led arrête de clignoter, mais lorsque l'on essaye de la réactiver l'interruption n'est plus détectée. L'interruption se produit donc 1 seule fois.
+Il faut ajouter "SerialEvent" dans loop afin de régler le problème. <!--TOODO-->
