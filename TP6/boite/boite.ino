@@ -41,10 +41,10 @@ unsigned long waitFor(int timer, unsigned long period) {
 
 enum {EMPTY, FULL};
 
-struct {
+struct mailbox_t {
   int state;
   int val;
-} mailbox_t ;
+};
 
 //--------- définition de la tache Led
 
@@ -64,9 +64,9 @@ void init_led(struct ctx_led_t * ctx, int timer, unsigned long period, byte pin)
   digitalWrite(pin, ctx->etat);
 }
 
-void step_led(struct ctx_led_t * ctx, mailbox_t* mb) {
+void step_led(struct ctx_led_t * ctx, struct mailbox_t* mb) {
   if (mb->state == FULL) { // lit la boite s'il est pleine
-    ctx->period = mb->val; // change la période avec la valeur dans la boite
+    ctx->period = 1000000/mb->val; // change la période avec la valeur dans la boite
     mb->state = EMPTY;  // vide la boite à lettre
   }
   if (!waitFor(ctx->timer, ctx->period)) return;          // sort s'il y a moins d'une période écoulée
@@ -113,12 +113,12 @@ void init_oled(struct ctx_oled_t* ctx, int timer, unsigned long period) {
     for(;;); // Don't proceed, loop forever
   }
 
-  display.setTextSize(3); // taille de la police
+  display.setTextSize(2); // taille de la police
   display.setTextColor(WHITE); // couleur de la police
   display.setCursor(10, 10); // positionnement du curseur
 }
 
-void step_oled(struct ctx_oled_t *ctx, mailbox_t* mb) {
+void step_oled(struct ctx_oled_t *ctx, struct mailbox_t* mb) {
   if (mb->state == FULL) { // lit la boite s'il est pleine
     ctx->counter = mb->val; // change la valeur à afficher
     mb->state = EMPTY;  // vide la boite à lettre
@@ -148,19 +148,21 @@ void init_lum(struct ctx_lum_t* ctx, int timer, unsigned long period) {
   pinMode(PHOTORES, INPUT);
 }
 
-void step_lum(struct ctx_lum_t* ctx, mailbox_t* mbOled, mailbox_t* mbLed){
+void step_lum(struct ctx_lum_t* ctx, struct mailbox_t* mbOled, struct mailbox_t* mbLed){
+  if (!(waitFor(ctx->timer,ctx->period))) return;
   int lum = analogRead(PHOTORES);
 
   if (mbOled->state == EMPTY){
     // écrit dans la boîte
-    mbOled->val = map(lum, 0, 1023, 0, 100);
+    mbOled->val = map(lum, 0, 4095, 0, 100);
     mbOled->state = FULL;
   }
 
   if (mbLed->state == EMPTY){
     // écrit dans la boîte
-    mbOled->val = map(lum, 0, 1023, 1000000, 100);
-    mbOled->state = FULL;
+    int x = map(lum, 0, 4095, 1, 25);
+    mbLed->val = x;
+    mbLed->state = FULL;
   }
 }
 
@@ -175,8 +177,9 @@ struct ctx_lum_t Lum;
 
 //--------- Déclaration des boîtes à lettre
 
-mailbox_t mbOled = {.state = EMPTY};
-mailbox_t mbLed = {.state = EMPTY};
+struct mailbox_t mbOled = {.state = EMPTY, .val = 0};
+struct mailbox_t mbLed = {.state = EMPTY, .val = 0};
+
 
 //--------- Setup et Loop
 

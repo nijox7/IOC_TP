@@ -41,10 +41,10 @@ unsigned long waitFor(int timer, unsigned long period) {
 
 enum {EMPTY, FULL};
 
-struct {
+struct mailbox_t {
   int state;
   int val;
-} mailbox_t ;
+};
 
 //--------- définition de la tache Led
 
@@ -66,17 +66,17 @@ void init_led(struct ctx_led_t * ctx, int timer, unsigned long period, byte pin)
   digitalWrite(pin, ctx->etat);
 }
 
-void step_led(struct ctx_led_t * ctx, mailbox_t* mb mailbox_t* stopLetter) {
-  if (mb->state == FULL) { // lit la boite s'il est pleine
-    if (mb->val == 0) ctx->blink = false; // arrête le clignottement
-    else ctx->blink = true;               // active le clignottement
+void step_led(struct ctx_led_t * ctx, struct mailbox_t* mb, volatile struct mailbox_t* mb_stop) {
+  if (mb_stop->state == FULL) { // lit la boite si elle est pleine
+    ctx->blink = !ctx->blink; // inverser le clignottement
+    Serial.println(ctx->blink);
+    mb_stop->state = EMPTY;  // vide la boite à lettre
+  }
+  if (mb->state == FULL) { // lit la boite si elle est pleine
+    ctx->period = 1000000/mb->val; // change la période avec la valeur dans la boite
     mb->state = EMPTY;  // vide la boite à lettre
   }
-  if (mb->state == FULL) { // lit la boite s'il est pleine
-    ctx->period = mb->val; // change la période avec la valeur dans la boite
-    mb->state = EMPTY;  // vide la boite à lettre
-  }
-  if (ctx->blink && !waitFor(ctx->timer, ctx->period)) return;          // sort s'il y a moins d'une période écoulée
+  if(!ctx->blink || !waitFor(ctx->timer, ctx->period)) return;          // sort s'il y a moins d'une période écoulée
   digitalWrite(ctx->pin,ctx->etat);                       // ecriture
   ctx->etat = 1 - ctx->etat;                              // changement d'état
 }
@@ -120,12 +120,12 @@ void init_oled(struct ctx_oled_t* ctx, int timer, unsigned long period) {
     for(;;); // Don't proceed, loop forever
   }
 
-  display.setTextSize(3); // taille de la police
+  display.setTextSize(2); // taille de la police
   display.setTextColor(WHITE); // couleur de la police
   display.setCursor(10, 10); // positionnement du curseur
 }
 
-void step_oled(struct ctx_oled_t *ctx, mailbox_t* mb) {
+void step_oled(struct ctx_oled_t *ctx, struct mailbox_t* mb) {
   if (mb->state == FULL) { // lit la boite s'il est pleine
     ctx->counter = mb->val; // change la valeur à afficher
     mb->state = EMPTY;  // vide la boite à lettre
@@ -135,6 +135,7 @@ void step_oled(struct ctx_oled_t *ctx, mailbox_t* mb) {
   display.clearDisplay(); // on vide le buffer (on écrase l'ancienne image)
   display.setCursor(10, 10); // on repositionne le curseur (print le déplace)
   display.print(ctx->counter); // on ajoute le compteur dans le buffer d'affichage
+  display.print("%"); // on ajoute le compteur dans le buffer d'affichage
   display.display(); // on affiche le buffer
 }
 
@@ -155,19 +156,21 @@ void init_lum(struct ctx_lum_t* ctx, int timer, unsigned long period) {
   pinMode(PHOTORES, INPUT);
 }
 
-void step_lum(struct ctx_lum_t* ctx, mailbox_t* mbOled, mailbox_t* mbLed){
+void step_lum(struct ctx_lum_t* ctx, struct mailbox_t* mbOled, struct mailbox_t* mbLed){
+  if (!(waitFor(ctx->timer,ctx->period))) return;
   int lum = analogRead(PHOTORES);
 
   if (mbOled->state == EMPTY){
     // écrit dans la boîte
-    mbOled->val = map(lum, 0, 1023, 0, 100);
+    mbOled->val = map(lum, 0, 4095, 0, 100);
     mbOled->state = FULL;
   }
 
   if (mbLed->state == EMPTY){
     // écrit dans la boîte
-    mbOled->val = map(lum, 0, 1023, 1000000, 100);
-    mbOled->state = FULL;
+    int x = map(lum, 0, 4095, 1, 25);
+    mbLed->val = x;
+    mbLed->state = FULL;
   }
 }
 
@@ -179,37 +182,27 @@ struct ctx_mess_t Mess2;
 struct ctx_oled_t Oled;
 struct ctx_lum_t Lum;
 
+
 //--------- Déclaration des boîtes à lettre
 
-mailbox_t mbOled = {.state = EMPTY};
-mailbox_t mbLed = {.state = EMPTY};
-volatile mailbox_t mbStopLed = {.state = EMPTY}; // volatile because it will be updated in the ISR function
+struct mailbox_t mbOled = {.state = EMPTY, .val = 0};
+struct mailbox_t mbLed = {.state = EMPTY, .val = 0};
+struct mailbox_t mbStopLed = {.state = EMPTY}; // volatile because it will be updated in the ISR function
+volatile struct mailbox_t mb_stop = {.state = EMPTY};
 
 //--------- Déclaration pour les Interruptions
 
-bool flag = keyS;
-
-void stopBlink(){
-  // ISR Function, envoie une lettre à la led
-  if (mbStopLed.state = EMPTY && keyS){ // si la touche S est activée et que la boite est vide
-    mbStopLed->val = 0; // arrête le clignotement
-    mbStopLed.stat = FULL;  // déclare la boite comme pleine
-  }
-}
-
-void SerialEvent(){
+void serialEvent(){
   // Détecte l'évènement au clavier
+  Serial.println("AAAAAAAAAAAAAAAAAAAAAAAAa");
   if (Serial.available()){
     char inChar = Serial.read();
-    if (inChar == 's') keyS = true;
-    else keyS = false;
+    if (inChar == 's') mb_stop.state = FULL;
   }
 }
 
 
 //--------- Setup et Loop
-
-
 
 void setup() {
   init_led(&Led1, 0, 100000, LED_BUILTIN);               // Led est exécutée toutes les 100ms 
@@ -218,17 +211,15 @@ void setup() {
   init_oled(&Oled, 3, 1000000);
   init_lum(&Lum, 4, 500000); // lit toutes les 0,5 secondes
 
-  inputString.reserve(1); // reserve 1 octet pour lire le clavier
-
   // attach interruption to the ISR function sendMail
-  attachInterrupt(digitalPinToInterrupt(2), stopBlink, FALLING); // 2->pin, sendMail->ISR function, FALLING -> trigger on falling edge
+  attachInterrupt(digitalPinToInterrupt(2), serialEvent, FALLING); // 2->pin, sendMail->ISR function, FALLING -> trigger on falling edge
 }
 
 void loop() {
   step_mess(&Mess1);
   step_mess(&Mess2);
 
-  step_led(&Led1, &mbLed, &mbStopLed);
+  step_led(&Led1, &mbLed, &mb_stop);
   step_oled(&Oled, &mbOled);
   step_lum(&Lum, &mbOled, &mbLed);
 }
