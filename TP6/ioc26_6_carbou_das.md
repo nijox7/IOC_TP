@@ -48,3 +48,10 @@ Le nom de la boîte aux lettre est mb. Elle est initialisée à l'aide d'une str
 
 
 ## Expériences réalisées
+
+Pour écrire sur l'écran Oled, nous avons crée une tache qui incrémente un compteur toutes les secondes et l'affiche sur l'écran.
+Nous avons intégré le compteur à la structure ctx_oled coresspondant à la tache pour éviter de faire une variable static qui limiterait la flexibilité de notre programme à 1 seul écran oled.
+
+Pour les interruptions, nous nous sommes documentés sur la façon de lire le clavier avec arduino: https://docs.arduino.cc/built-in-examples/communication/SerialEvent/
+SerialEvent permet de détecter un évènement au clavier. On récupère dans cette fonction la touche du clavier avec Serial.read().
+SerialEvent déclenche un flag keyS qui signifie que la touche S a été enfoncée.
