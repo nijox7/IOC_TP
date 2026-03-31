@@ -36,7 +36,6 @@ Seule la première des taches à faire l'appel à waitFor obtiendra le nombre de
 La fonction waitFor() peut rendre 2 lorsque au moins 2 périodes se sont écoulées.
 
 
-
 - Dans le texte précédent, quel est le nom de la boîte à lettre et comment est-elle initialisée ?
 
 Le nom de la boîte aux lettre est mb. Elle est initialisée à l'aide d'une structure possèdant l'état de la boîte et sa valeur. Elle est initialement à l'état vide et n'a donc pas de valeur.

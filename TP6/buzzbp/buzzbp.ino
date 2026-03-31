@@ -19,7 +19,9 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#define PHOTORES 36 // Photoresistance pin
+#define PHOTORES 36 // pin de la Photorésistance
+#define BUZZ 17 // pin du Buzzer
+#define BP 23 // pin du Bouton Poussoir
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
@@ -27,7 +29,7 @@
 #define OLED_RESET     16 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-#define MAX_WAIT_FOR_TIMER 5
+#define MAX_WAIT_FOR_TIMER 7
 
 unsigned long waitFor(int timer, unsigned long period) {
     static unsigned long last_period[MAX_WAIT_FOR_TIMER];  // il y a autant de timers que de tâches
@@ -174,6 +176,64 @@ void step_lum(struct ctx_lum_t* ctx, struct mailbox_t* mbOled, struct mailbox_t*
   }
 }
 
+//--------- définition de la tache Bp
+
+struct ctx_bp_t {
+  int timer;                                              // n° du timer pour cette tâche utilisé par WaitFor
+  unsigned long period;                                   // periode de lecture
+  int pin;                                                // numéro de la broche sur laquelle est le Bouton Poussoir
+  bool state;                                             // état du bouton (1=enfoncé, 0=relaché)
+};
+
+void init_bp(struct ctx_bp_t * ctx, int timer, unsigned long period, byte pin) {
+  ctx->timer = timer;
+  ctx->period = period;
+  ctx->pin = pin;
+  ctx->state = false;
+  pinMode(pin, INPUT_PULLUP);
+}
+
+void step_bp(struct ctx_led_t * ctx, struct mailbox_t* mb, volatile struct mailbox_t* mb) {
+  if (ctx->state) {
+    if (!waitFor(ctx->timer, ctx->period * 10)) return; // évite le phénomène de rebond, attend + longtemps
+  }
+  else if(!waitFor(ctx->timer, ctx->period)) return; // sort s'il y a moins d'une période écoulée
+
+  bool old_state = ctx->state;
+  ctx->state = digitalRead(ctx->pin);
+  if (ctx->state && !old_state){
+    // Front montant
+    if (mb->state == 0){
+      mb->state = 1;
+      mb->val = 1;
+    }
+  }
+}
+
+//--------- définition de la tache Buzz
+
+struct ctx_buzz_t {
+  int timer;                                              // n° du timer pour cette tâche utilisé par WaitFor
+  unsigned long period;                                   // période à laquelle on change l'alimentation du buzzer
+  int pin;                                                // numéro de la broche sur laquelle est le Buzzer
+  int state;                                              // état du buzzer (1=alimenté, 0=pas alimenté)
+};
+
+void init_buzz(struct ctx_bp_t * ctx, int timer, unsigned long period, byte pin) {
+  ctx->timer = timer;
+  ctx->period = period;
+  ctx->pin = pin;
+  ctx->state = 0;
+  pinMode(pin, OUTPUT);
+}
+
+void step_buzz(struct ctx_led_t * ctx, struct mailbox_t* mb, volatile struct mailbox_t* mb) {
+  if (mb->state == 1 && mb->val == 1) ctx->period = ((ctx->period - 50) + 10) % 100 + 50 // change la fréquence
+  if(!ctx->state !waitFor(ctx->timer, ctx->period)) return; // sort s'il y a moins d'une période écoulée
+  ctx->state = 1 - ctx->state; // alterne entre 1 et 0;
+  digitalWrite(ctx->pin, ctx->state);
+}
+
 //--------- Déclaration des contexte de tâches
 
 struct ctx_led_t Led1;
@@ -181,6 +241,7 @@ struct ctx_mess_t Mess1;
 struct ctx_mess_t Mess2;
 struct ctx_oled_t Oled;
 struct ctx_lum_t Lum;
+struct ctx_bp_t Bp;
 
 
 //--------- Déclaration des boîtes à lettre
@@ -189,6 +250,7 @@ struct mailbox_t mbOled = {.state = EMPTY, .val = 0};
 struct mailbox_t mbLed = {.state = EMPTY, .val = 0};
 struct mailbox_t mbStopLed = {.state = EMPTY}; // volatile because it will be updated in the ISR function
 volatile struct mailbox_t mb_stop = {.state = EMPTY};
+struct mailbox_t mbBuzz = {.state = EMPTY, .val = 0};
 
 //--------- Déclaration pour les Interruptions
 
@@ -209,6 +271,8 @@ void setup() {
   init_mess(&Mess2, 2, 2000000, "Salut");
   init_oled(&Oled, 3, 1000000);
   init_lum(&Lum, 4, 500000); // lit toutes les 0,5 secondes
+  init_bp(&Bp, 5, 10000, BP); // lit le bouton poussoir toutes les 10ms
+  init_buzz(&Buzz, 6, 100/2, &mbBuzz); // envoie une fréquence de 10kHz sur le buzzer
 
   // attach interruption to the ISR function sendMail
   attachInterrupt(digitalPinToInterrupt(2), serialEvent, FALLING); // 2->pin, sendMail->ISR function, FALLING -> trigger on falling edge
@@ -221,4 +285,6 @@ void loop() {
   step_led(&Led1, &mbLed, &mb_stop);
   step_oled(&Oled, &mbOled);
   step_lum(&Lum, &mbOled, &mbLed);
+  step_bp(&Bp, &mbBuzz);
+  step_buzz(&Buzz, &mbBuzz);
 }
