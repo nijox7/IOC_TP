@@ -1,0 +1,18 @@
+digraph Task {
+fontname="Helvetica,Arial,sans-serif"
+node [fontname="Helvetica,Arial,sans-serif"]
+edge [fontname="Helvetica,Arial,sans-serif"]
+node [shape=box]; mbOled; mbLed; mb_stop;
+node [shape=circle]; Led; Mess1; Mess2; Oled; Lum; SerialEvent;
+
+Lum->mbLed;
+Lum->mbOled;
+mbLed->Led;
+mbOled->Oled;
+SerialEvent->mb_stop;
+mb_stop->Led;
+
+overlap=false
+label="Task Model"
+fontsize=12;
+}
